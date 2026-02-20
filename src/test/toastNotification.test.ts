@@ -233,7 +233,7 @@ async function testUpdateNonexistentToast() {
 // ══════════════════════════════════════════════════════════
 
 async function testStatisticsTracking() {
-    const service = createService();
+    const service = createService({ maxVisible: 10 }); // Increase limit to show all toasts
     
     await service.success('Success 1');
     await service.success('Success 2');
