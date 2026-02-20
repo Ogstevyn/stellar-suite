@@ -120,6 +120,78 @@ export function activate(context: vscode.ExtensionContext) {
             "[Extension] WARNING: sidebarProvider not available",
           );
         }
+
+    // Register health monitoring commands
+    if (healthMonitor) {
+        registerHealthCommands(context, healthMonitor);
+        outputChannel.appendLine('[Extension] RPC health commands registered');
+    }
+
+    outputChannel.appendLine('[Extension] All commands registered');
+    console.log('[Stellar Suite] All commands registered');
+        outputChannel.appendLine('[Extension] All commands registered');
+
+        // ── File watcher ──────────────────────────────────────
+        const watcher = vscode.workspace.createFileSystemWatcher('**/{Cargo.toml,*.wasm}');
+        const refreshOnChange = () => sidebarProvider?.refresh();
+        watcher.onDidChange(refreshOnChange);
+        watcher.onDidCreate(refreshOnChange);
+        watcher.onDidDelete(refreshOnChange);
+
+        context.subscriptions.push(
+            simulateCommand,
+            deployCommand,
+            buildCommand,
+            configureCliCommand,
+            refreshCommand,
+            deployFromSidebarCommand,
+            simulateFromSidebarCommand,
+            copyContractIdCommand,
+            showVersionMismatchesCommand,
+            watcher
+            watcher,
+            syncStatusProvider || { dispose: () => {} }
+        );
+
+        outputChannel.appendLine('[Extension] Extension activation complete');
+        console.log('[Stellar Suite] Extension activation complete');
+
+    const watcher = vscode.workspace.createFileSystemWatcher('**/{Cargo.toml,*.wasm}');
+    watcher.onDidChange(() => {
+        if (sidebarProvider) {
+            sidebarProvider.refresh();
+        }
+    });
+    watcher.onDidCreate(() => {
+        if (sidebarProvider) {
+            sidebarProvider.refresh();
+        }
+    });
+    watcher.onDidDelete(() => {
+        if (sidebarProvider) {
+            sidebarProvider.refresh();
+        }
+    });
+
+    context.subscriptions.push(
+        simulateCommand,
+        deployCommand,
+        refreshCommand,
+        deployFromSidebarCommand,
+        simulateFromSidebarCommand,
+        buildCommand,
+        watcher,
+        healthStatusBar || { dispose: () => {} },
+        healthMonitor || { dispose: () => {} }
+    );
+
+    outputChannel.appendLine('[Extension] Extension activation complete');
+    console.log('[Stellar Suite] Extension activation complete');
+    } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        outputChannel.appendLine(`[Extension] ERROR during activation: ${errorMsg}`);
+        if (error instanceof Error && error.stack) {
+            outputChannel.appendLine(`[Extension] Stack: ${error.stack}`);
       },
     );
 
@@ -223,5 +295,8 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
+    healthMonitor?.dispose();
+    healthStatusBar?.dispose();
+    syncStatusProvider?.dispose();
   syncStatusProvider?.dispose();
 }
