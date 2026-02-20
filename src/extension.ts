@@ -189,64 +189,20 @@ export function activate(context: vscode.ExtensionContext) {
 
         replayService = new SimulationReplayService(simulationHistoryService!, outputChannel);
 
-    resourceProfilingService = new ResourceProfilingService(
-      context,
-      outputChannel,
-    );
-    registerResourceProfilingCommands(context, resourceProfilingService);
-    outputChannel.appendLine(
-      "[Extension] Resource profiling service initialized and commands registered",
-    );
+        // ── RPC Authentication ──────────────────────────────────
+        rpcAuthService = createRpcAuthService(context);
+        const updateRpcAuthHeaders = async () => {
+            if (!rpcAuthService || !fallbackService) return;
+            const headers = await rpcAuthService.getAuthHeaders();
+            fallbackService.updateAuthHeaders(headers);
+        };
+        // Initialize headers on startup
+        updateRpcAuthHeaders().catch(err => {
+            outputChannel.appendLine(`[Error] Failed to initialize RPC Auth: ${err}`);
+        });
+        registerRpcAuthCommands(context, rpcAuthService, updateRpcAuthHeaders);
+        outputChannel.appendLine("[Extension] RPC Auth service initialized and commands registered");
 
-    // ── RPC Authentication ──────────────────────────────────
-    rpcAuthService = createRpcAuthService(context);
-    const updateRpcAuthHeaders = async () => {
-      if (!rpcAuthService || !rpcService) return;
-      const headers = await rpcAuthService.getAuthHeaders();
-      rpcService.setAuthHeaders(headers);
-    };
-    // Initialize headers on startup
-    updateRpcAuthHeaders().catch(err => {
-      outputChannel.appendLine(`[Error] Failed to initialize RPC Auth: ${err}`);
-    });
-    registerRpcAuthCommands(context, rpcAuthService, updateRpcAuthHeaders);
-    outputChannel.appendLine("[Extension] RPC Auth service initialized and commands registered");
-
-    outputChannel.appendLine("[Extension] All commands registered");
-
-
-    // ── Watchers ─────────────────────────────────────────────
-    const watcher = vscode.workspace.createFileSystemWatcher('**/{Cargo.toml,*.wasm}');
-    const refreshOnChange = () => sidebarProvider?.refresh();
-    watcher.onDidChange(refreshOnChange);
-    watcher.onDidCreate(refreshOnChange);
-    watcher.onDidDelete(refreshOnChange);
-
-    context.subscriptions.push(
-      simulateCommand,
-      deployCommand,
-      buildCommand,
-      configureCliCommand,
-      refreshCommand,
-      deployFromSidebarCommand,
-      simulateFromSidebarCommand,
-      copyContractIdCommand,
-      showVersionMismatchesCommand,
-      showCompilationStatusCommand,
-      watcher,
-      { dispose: () => metadataService?.dispose() },
-      syncStatusProvider,
-      healthStatusBar ?? new vscode.Disposable(() => { }),
-      healthMonitor ?? new vscode.Disposable(() => { }),
-    );
-
-    outputChannel.appendLine('[Extension] Extension activation complete');
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    outputChannel.appendLine(`[Extension] ERROR during activation: ${errorMsg}`);
-    if (error instanceof Error && error.stack) {
-      outputChannel.appendLine(`[Extension] Stack: ${error.stack}`);
-    }
         // 7. Register Commands
         const simulateCommand = vscode.commands.registerCommand(
             "stellarSuite.simulateTransaction",
@@ -350,13 +306,13 @@ export function activate(context: vscode.ExtensionContext) {
             outputChannel,
             healthMonitor!,
             healthStatusBar!,
-            retryStatusBar || { dispose: () => {} },
+            retryStatusBar || { dispose: () => { } },
             retryService!,
             fallbackService!,
             { dispose: () => metadataService?.dispose() },
-            compilationMonitor || { dispose: () => {} },
-            compilationStatusProvider || { dispose: () => {} },
-            syncStatusProvider || { dispose: () => {} }
+            compilationMonitor || { dispose: () => { } },
+            compilationStatusProvider || { dispose: () => { } },
+            syncStatusProvider || { dispose: () => { } }
         );
 
         outputChannel.appendLine("[Extension] Extension activation complete");
