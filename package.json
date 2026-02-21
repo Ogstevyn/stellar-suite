@@ -27,7 +27,7 @@
     "onCommand:stellarSuite.configureCli",
     "onCommand:stellarSuite.refreshContracts",
     "onCommand:stellarSuite.clearSimulationCache",
-    "onCommand:stellarSuite.showSimulationCacheStats"
+    "onCommand:stellarSuite.showSimulationCacheStats",
     "onCommand:stellarSuite.deployBatch",
     "onCommand:stellarSuite.manageRpcAuth",
     "onCommand:stellarSuite.manageEnvVariables"
@@ -68,15 +68,16 @@
         "icon": "$(refresh)"
       },
       {
-  "command": "stellarSuite.clearSimulationCache",
-  "title": "Stellar Suite: Clear Simulation Cache",
-  "icon": "$(trash)"
-},
-{
-  "command": "stellarSuite.showSimulationCacheStats",
-  "title": "Stellar Suite: Simulation Cache Stats",
-  "icon": "$(info)"
-},
+        "command": "stellarSuite.clearSimulationCache",
+        "title": "Stellar Suite: Clear Simulation Cache",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "stellarSuite.showSimulationCacheStats",
+        "title": "Stellar Suite: Simulation Cache Stats",
+        "icon": "$(info)"
+      },
+      {
         "command": "stellarSuite.deployBatch",
         "title": "Stellar Suite: Deploy Batch",
         "icon": "$(cloud-upload)"
@@ -478,6 +479,7 @@
     "test:template-detection": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/cargoTomlParser.ts src/services/contractTemplateService.ts src/test/templateDetection.test.ts && node out-test/test/templateDetection.test.js",
     "test:soroban-cli": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/sorobanCliService.ts src/services/cliHistoryService.ts src/test/sorobanCliService.test.ts && node out-test/test/sorobanCliService.test.js",
     "test:cli-config": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/cliConfigurationService.ts src/test/cliConfigurationService.test.ts && node out-test/test/cliConfigurationService.test.js",
+    "test:cli-integration": "node scripts/setup-vscode-mock.js && tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/simulationState.ts src/utils/cliErrorParser.ts src/utils/streamBuffer.ts src/utils/cliCleanupUtilities.ts src/services/cliCancellation.ts src/services/cliTimeoutService.ts src/ui/timeoutIndicators.ts src/services/cliOutputStreamingService.ts src/services/cliHistoryService.ts src/services/sorobanCliService.ts src/test/mocks/mockCliOutputStreamingService.ts src/test/cliIntegration.test.ts && node out-test/test/cliIntegration.test.js",
     "test:sidebar-refresh": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/sidebarAutoRefreshService.ts src/test/sidebarAutoRefreshService.test.ts && node out-test/test/sidebarAutoRefreshService.test.js",
     "test:transaction-signing": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/transactionSigningService.ts src/test/transactionSigningService.test.ts && node out-test/test/transactionSigningService.test.js",
     "test:keypair-management": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/keypairManagementService.ts src/test/keypairManagementService.test.ts && node out-test/test/keypairManagementService.test.js",
@@ -497,7 +499,7 @@
     "test:cli-version": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/utils/versionParser.ts src/types/cliVersion.ts src/services/cliVersionService.ts src/test/cliVersion.test.ts && node out-test/test/cliVersion.test.js",
     "test:form-generator": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/contractInspector.ts src/utils/jsonParser.ts src/test/mocks/testableContractInspector.ts src/test/fixtures/formGenerationFixtures.ts src/test/formGenerator.test.ts && node out-test/test/formGenerator.test.js",
     "test:form-validator": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/contractInspector.ts src/services/simulationValidationService.ts src/test/fixtures/formGenerationFixtures.ts src/test/formValidator.test.ts && node out-test/test/formValidator.test.js",
-    "test:offline-simulation": "node scripts/setup-vscode-mock.js && tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/offlineSimulation.ts src/services/contractCacheService.ts src/services/offlineModeDetectionService.ts src/services/offlineSimulationService.ts src/services/simulationHistoryService.ts src/test/offlineSimulation.test.ts && node out-test/test/offlineSimulation.test.js"
+    "test:offline-simulation": "node scripts/setup-vscode-mock.js && tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/types/offlineSimulation.ts src/services/contractCacheService.ts src/services/offlineModeDetectionService.ts src/services/offlineSimulationService.ts src/services/simulationHistoryService.ts src/test/offlineSimulation.test.ts && node out-test/test/offlineSimulation.test.js",
     "test:abi-form-generator": "tsc --module commonjs --target ES2020 --lib ES2020,DOM --esModuleInterop --skipLibCheck --rootDir src --outDir out-test src/services/contractInspector.ts src/services/inputSanitizationService.ts src/utils/abiParser.ts src/services/abiFormGeneratorService.ts src/services/formValidationService.ts src/test/abiFormGenerator.test.ts && node out-test/test/abiFormGenerator.test.js"
   },
   "devDependencies": {
