@@ -44,6 +44,8 @@ import { createToastNotificationService } from "./services/toastNotificationVsco
 import { ToastNotificationService } from "./services/toastNotificationService";
 import { RpcRetryService } from "./services/rpcRetryService";
 import { createCliConfigurationService } from "./services/cliConfigurationVscode";
+import { createCliVersionService } from "./services/cliVersionVscode";
+import { CliVersionService } from "./services/cliVersionService";
 import { ContractDependencyDetectionService } from "./services/contractDependencyDetectionService";
 import { ContractDependencyWatcherService } from "./services/contractDependencyWatcherService";
 import { CliHistoryService } from "./services/cliHistoryService";
@@ -82,6 +84,7 @@ let resourceProfilingService: ResourceProfilingService | undefined;
 let rpcAuthService: RpcAuthService | undefined;
 let envVariableService: EnvVariableService | undefined;
 let fallbackService: RpcFallbackService | undefined;
+let cliVersionService: CliVersionService | undefined;
 // FIX: Removed duplicate declarations of retryService and retryStatusBar
 let dependencyDetectionService: ContractDependencyDetectionService | undefined;
 let dependencyWatcherService: ContractDependencyWatcherService | undefined;
@@ -160,10 +163,22 @@ const copyContractIdCommand = vscode.commands.registerCommand(
       () => toastNotificationPanel?.showNotificationHistory()
     );
 
+    // CLI Version Detection
+    cliVersionService = createCliVersionService(context, outputChannel);
+    context.subscriptions.push(cliVersionService);
+    outputChannel.appendLine('[Extension] CLI version detection initialized');
+
     context.subscriptions.push(showNotificationHistoryCommand);
     outputChannel.appendLine('[Extension] Toast notification system initialized');
 
     outputChannel.appendLine("[Extension] All services initialized");
+
+    // Wire CLI version warnings to sidebar
+    if (cliVersionService && sidebarProvider) {
+      cliVersionService.onWarning((result) => {
+        sidebarProvider?.postCliVersionWarning(result);
+      });
+    }
 
     // 10. Register Commands
     const simulateCommand = vscode.commands.registerCommand(
@@ -271,6 +286,29 @@ const copyContractIdCommand = vscode.commands.registerCommand(
       },
     );
 
+    const checkCliVersionCommand = vscode.commands.registerCommand(
+      "stellarSuite.checkCliVersion",
+      async () => {
+        if (!cliVersionService) { return; }
+        const cliPath = vscode.workspace.getConfiguration('stellarSuite').get<string>('cliPath', 'stellar');
+        cliVersionService.clearCache();
+        const result = await cliVersionService.checkVersion(cliPath);
+        if (result) {
+          if (result.compatible) {
+            vscode.window.showInformationMessage(result.message);
+          } else {
+            const action = result.upgradeCommand ? await vscode.window.showWarningMessage(result.message, 'Copy Upgrade Command') : undefined;
+            if (action === 'Copy Upgrade Command' && result.upgradeCommand) {
+              await vscode.env.clipboard.writeText(result.upgradeCommand);
+              vscode.window.showInformationMessage('Upgrade command copied to clipboard.');
+            }
+          }
+        } else {
+          vscode.window.showInformationMessage('CLI version check is disabled.');
+        }
+      }
+    );
+
     registerSimulationHistoryCommands(context, simulationHistoryService!);
     // FIX: Use simulationReplayService (was incorrectly replayService in the old broken copy)
     registerReplayCommands(context, simulationHistoryService!, simulationReplayService!, sidebarProvider, fallbackService);
@@ -328,6 +366,7 @@ const copyContractIdCommand = vscode.commands.registerCommand(
       copyContractIdCommand,
       showVersionMismatchesCommand,
       showCompilationStatusCommand,
+      checkCliVersionCommand,
       exportContractStateCommand,
       importContractStateCommand,
       deployFromSidebarCommand,
