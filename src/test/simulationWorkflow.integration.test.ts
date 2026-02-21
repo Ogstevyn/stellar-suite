@@ -160,13 +160,13 @@ async function testCompleteSimulationFlowSuccess() {
     // Verify cache
     const cachedResult = env.cacheService.get(cacheKey);
     assert.ok(cachedResult);
-    assert.strictEqual(cachedResult.success, true);
-    assert.deepStrictEqual(cachedResult.result, simulationResult.result);
+    assert.strictEqual(cachedResult!.success, true);
+    assert.deepStrictEqual(cachedResult!.result, simulationResult.result);
 
     // Verify history retrieval
     const retrieved = env.historyService.getEntry(historyEntry.id);
     assert.ok(retrieved);
-    assert.strictEqual(retrieved.id, historyEntry.id);
+    assert.strictEqual(retrieved!.id, historyEntry.id);
 
     console.log('  [ok] complete simulation flow (success path)');
 }
@@ -245,8 +245,8 @@ async function testSimulationCaching() {
     // Second simulation - cache hit
     cachedResult = env.cacheService.get(cacheKey);
     assert.ok(cachedResult, 'result should be cached');
-    assert.strictEqual(cachedResult.success, true);
-    assert.deepStrictEqual(cachedResult.result, simulationResult.result);
+    assert.strictEqual(cachedResult!.success, true);
+    assert.deepStrictEqual(cachedResult!.result, simulationResult.result);
 
     // Verify cache stats
     const stats = env.cacheService.getStats();
@@ -415,13 +415,13 @@ async function testStateDiffCalculation() {
     // Verify modified entries
     const aliceChange = diff.modified.find(c => c.key === 'balance_alice');
     assert.ok(aliceChange);
-    assert.strictEqual(aliceChange.beforeValue, 1000);
-    assert.strictEqual(aliceChange.afterValue, 900);
+    assert.strictEqual(aliceChange!.beforeValue, 1000);
+    assert.strictEqual(aliceChange!.afterValue, 900);
 
     const bobChange = diff.modified.find(c => c.key === 'balance_bob');
     assert.ok(bobChange);
-    assert.strictEqual(bobChange.beforeValue, 500);
-    assert.strictEqual(bobChange.afterValue, 600);
+    assert.strictEqual(bobChange!.beforeValue, 500);
+    assert.strictEqual(bobChange!.afterValue, 600);
 
     console.log('  [ok] state diff calculation (modified entries)');
 }
@@ -670,8 +670,8 @@ async function testSimulationResultVerification() {
     assert.strictEqual(successResult.success, true);
     assert.ok(successResult.result);
     assert.ok(successResult.resourceUsage);
-    assert.strictEqual(successResult.resourceUsage.cpuInstructions, 1234567);
-    assert.strictEqual(successResult.resourceUsage.memoryBytes, 8192);
+    assert.strictEqual(successResult.resourceUsage!.cpuInstructions, 1234567);
+    assert.strictEqual(successResult.resourceUsage!.memoryBytes, 8192);
 
     // Test failure result structure
     const failureResult = SimulationFixtureFactory.createFailureResult('test error', {
@@ -685,7 +685,7 @@ async function testSimulationResultVerification() {
     assert.strictEqual(failureResult.errorType, 'execution');
     assert.strictEqual(failureResult.errorCode, 'TEST_ERROR');
     assert.ok(failureResult.errorSuggestions);
-    assert.strictEqual(failureResult.errorSuggestions.length, 2);
+    assert.strictEqual(failureResult.errorSuggestions!.length, 2);
 
     console.log('  [ok] simulation result verification');
 }
