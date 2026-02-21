@@ -2,20 +2,46 @@
 // WebView panel for dynamic contract function form generation.
 // Follows the same structural pattern as simulationPanel.ts.
 
-import * as vscode from 'vscode';
-import { GeneratedForm } from '../services/abiFormGeneratorService';
+import * as vscode from "vscode";
+import { GeneratedForm } from "../services/abiFormGeneratorService";
 
 // Message types received from the webview
 interface FormSubmitMessage {
-    type: 'formSubmit';
-    args: Record<string, string>;
+  type: "formSubmit";
+  args: Record<string, string>;
 }
 
 interface FormCancelMessage {
-    type: 'formCancel';
+  type: "formCancel";
 }
 
-type WebviewMessage = FormSubmitMessage | FormCancelMessage;
+interface FormLiveValidateMessage {
+  type: "liveValidate";
+  args: Record<string, string>;
+}
+
+interface FormSaveTemplateMessage {
+  type: "saveTemplate";
+  args: Record<string, string>;
+}
+
+interface FormLoadTemplateMessage {
+  type: "loadTemplate";
+  id: string;
+}
+
+interface FormDeleteTemplateMessage {
+  type: "deleteTemplate";
+  id: string;
+}
+
+type WebviewMessage =
+  | FormSubmitMessage
+  | FormCancelMessage
+  | FormLiveValidateMessage
+  | FormSaveTemplateMessage
+  | FormLoadTemplateMessage
+  | FormDeleteTemplateMessage;
 
 /**
  * Manages the WebView panel that displays a dynamically generated contract
@@ -31,133 +57,185 @@ type WebviewMessage = FormSubmitMessage | FormCancelMessage;
  *   // loop until valid
  */
 export class ContractFormPanel {
-    private static currentPanel: ContractFormPanel | undefined;
+  private static currentPanel: ContractFormPanel | undefined;
 
-    private readonly _panel: vscode.WebviewPanel;
-    private _disposables: vscode.Disposable[] = [];
-    private _resolveSubmit?: (args: Record<string, string> | null) => void;
-    private readonly _form: GeneratedForm;
+  private readonly _panel: vscode.WebviewPanel;
+  private _disposables: vscode.Disposable[] = [];
+  private _resolveSubmit?: (args: Record<string, string> | null) => void;
+  private readonly _onDidReceiveLiveValidation = new vscode.EventEmitter<
+    Record<string, string>
+  >();
+  private readonly _onDidReceiveSaveTemplate = new vscode.EventEmitter<
+    Record<string, string>
+  >();
+  private readonly _onDidReceiveLoadTemplate =
+    new vscode.EventEmitter<string>();
+  private readonly _onDidReceiveDeleteTemplate =
+    new vscode.EventEmitter<string>();
+  private readonly _form: GeneratedForm;
 
-    private constructor(
-        panel: vscode.WebviewPanel,
-        form: GeneratedForm
-    ) {
-        this._panel = panel;
-        this._form = form;
-        this._panel.webview.html = this._getHtml();
+  private constructor(panel: vscode.WebviewPanel, form: GeneratedForm) {
+    this._panel = panel;
+    this._form = form;
+    this._panel.webview.html = this._getHtml();
 
-        // Unblock any awaiting caller when the panel is closed by the user
-        this._panel.onDidDispose(() => {
+    // Unblock any awaiting caller when the panel is closed by the user
+    this._panel.onDidDispose(
+      () => {
+        if (this._resolveSubmit) {
+          this._resolveSubmit(null);
+          this._resolveSubmit = undefined;
+        }
+        this.dispose();
+      },
+      null,
+      this._disposables,
+    );
+
+    this._panel.webview.onDidReceiveMessage(
+      (message: WebviewMessage) => {
+        switch (message.type) {
+          case "formSubmit":
             if (this._resolveSubmit) {
-                this._resolveSubmit(null);
-                this._resolveSubmit = undefined;
+              this._resolveSubmit(message.args);
+              this._resolveSubmit = undefined;
+            }
+            return;
+          case "formCancel":
+            if (this._resolveSubmit) {
+              this._resolveSubmit(null);
+              this._resolveSubmit = undefined;
             }
             this.dispose();
-        }, null, this._disposables);
-
-        this._panel.webview.onDidReceiveMessage(
-            (message: WebviewMessage) => {
-                switch (message.type) {
-                    case 'formSubmit':
-                        if (this._resolveSubmit) {
-                            this._resolveSubmit(message.args);
-                            this._resolveSubmit = undefined;
-                        }
-                        return;
-                    case 'formCancel':
-                        if (this._resolveSubmit) {
-                            this._resolveSubmit(null);
-                            this._resolveSubmit = undefined;
-                        }
-                        this.dispose();
-                        return;
-                }
-            },
-            null,
-            this._disposables
-        );
-    }
-
-    // ── Static Factory ────────────────────────────────────────
-
-    /**
-     * Create or reveal the contract form panel.
-     * If an existing panel is open, its content is replaced with the new form.
-     */
-    public static createOrShow(
-        context: vscode.ExtensionContext,
-        form: GeneratedForm
-    ): ContractFormPanel {
-        const column = vscode.window.activeTextEditor?.viewColumn ?? vscode.ViewColumn.One;
-
-        if (ContractFormPanel.currentPanel) {
-            ContractFormPanel.currentPanel._panel.reveal(column);
-            // Refresh content for the new function
-            ContractFormPanel.currentPanel._panel.webview.html =
-                ContractFormPanel.currentPanel._getHtml();
-            return ContractFormPanel.currentPanel;
+            return;
+          case "liveValidate":
+            this._onDidReceiveLiveValidation.fire(message.args);
+            return;
+          case "saveTemplate":
+            this._onDidReceiveSaveTemplate.fire(message.args);
+            return;
+          case "loadTemplate":
+            this._onDidReceiveLoadTemplate.fire(message.id);
+            return;
+          case "deleteTemplate":
+            this._onDidReceiveDeleteTemplate.fire(message.id);
+            return;
         }
+      },
+      null,
+      this._disposables,
+    );
+  }
 
-        const panel = vscode.window.createWebviewPanel(
-            'contractFormPanel',
-            `Contract Form: ${form.functionName}`,
-            column,
-            {
-                enableScripts: true,
-                retainContextWhenHidden: true,
-            }
-        );
+  // ── Static Factory ────────────────────────────────────────
 
-        ContractFormPanel.currentPanel = new ContractFormPanel(panel, form);
-        return ContractFormPanel.currentPanel;
+  /**
+   * Create or reveal the contract form panel.
+   * If an existing panel is open, its content is replaced with the new form.
+   */
+  public static createOrShow(
+    context: vscode.ExtensionContext,
+    form: GeneratedForm,
+  ): ContractFormPanel {
+    const column =
+      vscode.window.activeTextEditor?.viewColumn ?? vscode.ViewColumn.One;
+
+    if (ContractFormPanel.currentPanel) {
+      ContractFormPanel.currentPanel._panel.reveal(column);
+      // Refresh content for the new function
+      ContractFormPanel.currentPanel._panel.webview.html =
+        ContractFormPanel.currentPanel._getHtml();
+      return ContractFormPanel.currentPanel;
     }
 
-    // ── Public Methods ────────────────────────────────────────
+    const panel = vscode.window.createWebviewPanel(
+      "contractFormPanel",
+      `Contract Form: ${form.functionName}`,
+      column,
+      {
+        enableScripts: true,
+        retainContextWhenHidden: true,
+      },
+    );
 
-    /**
-     * Returns a Promise that resolves when the user submits the form
-     * (with the raw FormData Record<string,string>) or when they cancel
-     * or close the panel (with null).
-     *
-     * Call this once per submission attempt. On validation failure, call
-     * showErrors() and then await waitForSubmit() again on the same panel.
-     */
-    public waitForSubmit(): Promise<Record<string, string> | null> {
-        return new Promise<Record<string, string> | null>(resolve => {
-            this._resolveSubmit = resolve;
-        });
+    ContractFormPanel.currentPanel = new ContractFormPanel(panel, form);
+    return ContractFormPanel.currentPanel;
+  }
+
+  // ── Public Methods ────────────────────────────────────────
+
+  /**
+   * Returns a Promise that resolves when the user submits the form
+   * (with the raw FormData Record<string,string>) or when they cancel
+   * or close the panel (with null).
+   *
+   * Call this once per submission attempt. On validation failure, call
+   * showErrors() and then await waitForSubmit() again on the same panel.
+   */
+  public waitForSubmit(): Promise<Record<string, string> | null> {
+    return new Promise<Record<string, string> | null>((resolve) => {
+      this._resolveSubmit = resolve;
+    });
+  }
+
+  /**
+   * Post per-field validation errors to the webview for inline display.
+   * @param errors - map of paramName → error message string
+   */
+  public showErrors(errors: Record<string, string>): void {
+    this._panel.webview.postMessage({ type: "validationErrors", errors });
+  }
+
+  /**
+   * Post per-field validation warnings to the webview for inline display.
+   * @param warnings - map of paramName → warning message string
+   */
+  public showWarnings(warnings: Record<string, string>): void {
+    this._panel.webview.postMessage({ type: "validationWarnings", warnings });
+  }
+
+  public sendTemplates(templates: Array<{ id: string; name: string }>): void {
+    this._panel.webview.postMessage({ type: "renderTemplates", templates });
+  }
+
+  public loadTemplateData(data: Record<string, string>): void {
+    this._panel.webview.postMessage({ type: "loadTemplateData", data });
+  }
+
+  public get onDidReceiveLiveValidation(): vscode.Event<
+    Record<string, string>
+  > {
+    return this._onDidReceiveLiveValidation.event;
+  }
+
+  public get onDidReceiveSaveTemplate(): vscode.Event<Record<string, string>> {
+    return this._onDidReceiveSaveTemplate.event;
+  }
+
+  public get onDidReceiveLoadTemplate(): vscode.Event<string> {
+    return this._onDidReceiveLoadTemplate.event;
+  }
+
+  public get onDidReceiveDeleteTemplate(): vscode.Event<string> {
+    return this._onDidReceiveDeleteTemplate.event;
+  }
+
+  public dispose(): void {
+    ContractFormPanel.currentPanel = undefined;
+    this._panel.dispose();
+    while (this._disposables.length) {
+      const d = this._disposables.pop();
+      if (d) {
+        d.dispose();
+      }
     }
+  }
 
-    /**
-     * Post per-field validation errors to the webview for inline display.
-     * @param errors - map of paramName → error message string
-     */
-    public showErrors(errors: Record<string, string>): void {
-        this._panel.webview.postMessage({ type: 'validationErrors', errors });
-    }
+  // ── HTML Generation ───────────────────────────────────────
 
-    /**
-     * Post per-field validation warnings to the webview for inline display.
-     * @param warnings - map of paramName → warning message string
-     */
-    public showWarnings(warnings: Record<string, string>): void {
-        this._panel.webview.postMessage({ type: 'validationWarnings', warnings });
-    }
-
-    public dispose(): void {
-        ContractFormPanel.currentPanel = undefined;
-        this._panel.dispose();
-        while (this._disposables.length) {
-            const d = this._disposables.pop();
-            if (d) { d.dispose(); }
-        }
-    }
-
-    // ── HTML Generation ───────────────────────────────────────
-
-    private _getHtml(): string {
-        const { formHtml, functionName, contractId } = this._form;
-        return `<!DOCTYPE html>
+  private _getHtml(): string {
+    const { formHtml, functionName, contractId } = this._form;
+    return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -358,7 +436,80 @@ export class ContractFormPanel {
             if (data.type === 'validationWarnings') {
                 showWarnings(data.warnings);
             }
+            if (data.type === 'renderTemplates') {
+                renderTemplates(data.templates);
+            }
+            if (data.type === 'loadTemplateData') {
+                fillFormData(data.data);
+            }
         });
+
+        // ── Template Interactions ──────────
+        const saveTemplateBtn = document.getElementById('save-template-btn');
+        if (saveTemplateBtn) {
+            saveTemplateBtn.addEventListener('click', function() {
+                if (!form) return;
+                const raw = new FormData(form);
+                const args = {};
+                raw.forEach(function(value, key) {
+                    args[key] = value;
+                });
+                vscode.postMessage({ type: 'saveTemplate', args: args });
+            });
+        }
+
+        const templateSelect = document.getElementById('template-select');
+        const deleteTemplateBtn = document.getElementById('delete-template-btn');
+        if (templateSelect) {
+            templateSelect.addEventListener('change', function(e) {
+                const id = e.target.value;
+                if (!id) {
+                    if (deleteTemplateBtn) deleteTemplateBtn.style.display = 'none';
+                    return;
+                }
+                if (deleteTemplateBtn) deleteTemplateBtn.style.display = 'inline-block';
+                vscode.postMessage({ type: 'loadTemplate', id: id });
+            });
+        }
+
+        if (deleteTemplateBtn) {
+            deleteTemplateBtn.addEventListener('click', function() {
+                if (!templateSelect) return;
+                const id = templateSelect.value;
+                if (id) {
+                    vscode.postMessage({ type: 'deleteTemplate', id: id });
+                }
+            });
+        }
+
+        function renderTemplates(templates) {
+            if (!templateSelect) return;
+            templateSelect.innerHTML = '<option value="">-- Load Template --</option>';
+            templates.forEach(function(t) {
+                const opt = document.createElement('option');
+                opt.value = t.id;
+                opt.textContent = t.name;
+                templateSelect.appendChild(opt);
+            });
+            if (deleteTemplateBtn) deleteTemplateBtn.style.display = 'none';
+        }
+
+        function fillFormData(data) {
+            Object.keys(data).forEach(function(key) {
+                // Ignore the metadata keys that are usually present
+                if (key === '__contractId' || key === '__functionName') return;
+                
+                const input = document.querySelector('[name="' + key + '"]');
+                if (input) {
+                    // special handling for checkboxes vs other inputs could go here
+                    // assuming plain text/number/textarea for now based on AbiGenerator
+                    input.value = data[key];
+
+                    // Fire input event to trigger any live validation
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            });
+        }
 
         function showErrors(errors) {
             Object.keys(errors).forEach(function(paramName) {
@@ -396,16 +547,16 @@ export class ContractFormPanel {
     </script>
 </body>
 </html>`;
-    }
+  }
 }
 
 // ── HTML Escape Helper ────────────────────────────────────────
 // Mirrors the escapeHtml() in simulationPanel.ts exactly.
 function escHtml(text: string): string {
-    return text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
