@@ -36,11 +36,11 @@ jobs:
         run: |
           echo "Checking compilation output..."
           if [ ! -f "out/extension.js" ]; then
-            echo "❌ Error: extension.js not found in out/"
+            echo "error: extension.js not found in out/"
             exit 1
           fi
           if [ ! -f "out/extension.js.map" ]; then
-            echo "⚠️  Warning: extension.js.map not found"
+            echo "warning: extension.js.map not found"
           fi
           echo "✓ Main extension file exists"
           echo "Checking output structure..."
@@ -55,7 +55,7 @@ jobs:
         run: |
           echo "Verifying prepublish output..."
           if [ ! -f "out/extension.js" ]; then
-            echo "❌ Error: extension.js missing after prepublish"
+            echo "error: extension.js missing after prepublish"
             exit 1
           fi
           echo "✓ Prepublish output verified"
@@ -72,7 +72,7 @@ jobs:
             echo "Test output directory exists"
             find out-test -name "*.js" -type f | head -10
           else
-            echo "⚠️  Warning: out-test directory not found"
+            echo " warning: out-test directory not found"
           fi
           echo "✓ Test output verified"
       
