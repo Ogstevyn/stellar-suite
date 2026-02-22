@@ -368,11 +368,24 @@ Watch mode:
 npm run watch
 ```
 
-Run tests:
+Run tests (executes the full suite):
 
 ```bash
 npm test
 ```
+
+Run specific test suites (e.g., contract deployer tests):
+
+```bash
+npm run test:contract-deployer
+```
+
+Deployment workflow integration suite:
+
+```bash
+npm run test:deployment-workflow-integration
+```
+*Note: Unit tests are fully isolated and use mock implementations to prevent actual CLI execution or network access during testing.*
 
 ### Running Locally
 
