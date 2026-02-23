@@ -56,7 +56,8 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
-        private readonly _context: vscode.ExtensionContext
+        private readonly _context: vscode.ExtensionContext,
+        private readonly groupService?: any // Use any for now or import ContractGroupService
     ) {
         this.outputChannel = vscode.window.createOutputChannel('Stellar Suite');
         this.contextMenuService = new ContractContextMenuService(
@@ -118,7 +119,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                         actions,
                         contractName: req.contractName,
                         contractPath: req.contractPath,
-                        contractId:   req.contractId,
+                        contractId: req.contractId,
                         x: req.x,
                         y: req.y,
                     });
@@ -142,7 +143,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
 
                 case 'dnd:reorder': {
                     const fromPath = message['fromPath'] as string | undefined;
-                    const toPath   = message['toPath']   as string | undefined;
+                    const toPath = message['toPath'] as string | undefined;
 
                     if (!fromPath || !toPath) {
                         this.outputChannel.appendLine('[Reordering] ERROR: missing fromPath or toPath');
@@ -163,7 +164,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                         this._lastContracts = reordered;
                         this._view?.webview.postMessage({
                             type: 'update',
-                            contracts:   reordered,
+                            contracts: reordered,
                             deployments: this._getDeploymentHistory(),
                         });
                     } catch (err) {
@@ -175,7 +176,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                         });
                         this._view?.webview.postMessage({
                             type: 'update',
-                            contracts:   this._lastContracts,
+                            contracts: this._lastContracts,
                             deployments: this._getDeploymentHistory(),
                         });
                     }
@@ -186,7 +187,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
                     this.outputChannel.appendLine('[Reordering] Drag cancelled — restoring order');
                     this._view?.webview.postMessage({
                         type: 'update',
-                        contracts:   this._lastContracts,
+                        contracts: this._lastContracts,
                         deployments: this._getDeploymentHistory(),
                     });
                     break;
@@ -214,8 +215,8 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         if (!this._view) { return; }
         this.outputChannel.appendLine('[Sidebar] Refreshing contract data…');
 
-        const discovered    = this._discoverContracts();
-        const ordered       = this.reorderingService.applyOrder(discovered);
+        const discovered = this._discoverContracts();
+        const ordered = this.reorderingService.applyOrder(discovered);
         this._lastContracts = ordered;
 
         const deployments = this._getDeploymentHistory();
@@ -238,9 +239,9 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         if (!workspaceFolders) { return []; }
 
-        const hidden          = this._context.workspaceState.get<string[]>('stellarSuite.hiddenContracts', []);
-        const aliases         = this._context.workspaceState.get<Record<string, string>>('stellarSuite.contractAliases', {});
-        const pinned          = this._context.workspaceState.get<string[]>('stellarSuite.pinnedContracts', []);
+        const hidden = this._context.workspaceState.get<string[]>('stellarSuite.hiddenContracts', []);
+        const aliases = this._context.workspaceState.get<Record<string, string>>('stellarSuite.contractAliases', {});
+        const pinned = this._context.workspaceState.get<string[]>('stellarSuite.pinnedContracts', []);
         const networkOverrides = this._context.workspaceState.get<Record<string, string>>('stellarSuite.contractNetworkOverrides', {});
 
         const contracts: ContractInfo[] = [];
@@ -248,10 +249,10 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         for (const folder of workspaceFolders) {
             const found = this._findContracts(folder.uri.fsPath);
             for (const c of found) {
-                if (hidden.includes(c.path))          { continue; }
-                if (aliases[c.path])                  { c.name    = aliases[c.path]; }
+                if (hidden.includes(c.path)) { continue; }
+                if (aliases[c.path]) { c.name = aliases[c.path]; }
                 c.isPinned = pinned.includes(c.path);
-                if (networkOverrides[c.path])          { c.network = networkOverrides[c.path]; }
+                if (networkOverrides[c.path]) { c.network = networkOverrides[c.path]; }
                 contracts.push(c);
             }
         }
@@ -274,31 +275,31 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         const hasCargoToml = entries.some(e => e.isFile() && e.name === 'Cargo.toml');
 
         if (hasCargoToml) {
-            const cargoPath    = path.join(rootPath, 'Cargo.toml');
+            const cargoPath = path.join(rootPath, 'Cargo.toml');
             const cargoContent = fs.readFileSync(cargoPath, 'utf-8');
 
             if (cargoContent.includes('soroban-sdk')) {
-                const nameMatch    = cargoContent.match(/^\s*name\s*=\s*"([^"]+)"/m);
+                const nameMatch = cargoContent.match(/^\s*name\s*=\s*"([^"]+)"/m);
                 const contractName = nameMatch ? nameMatch[1] : path.basename(rootPath);
 
                 const wasmPath = path.join(rootPath, 'target', 'wasm32-unknown-unknown', 'release');
-                const isBuilt  = fs.existsSync(wasmPath) &&
+                const isBuilt = fs.existsSync(wasmPath) &&
                     fs.readdirSync(wasmPath).some(f => f.endsWith('.wasm'));
 
                 const deployedContracts = this._context.workspaceState.get<Record<string, string>>(
                     'stellarSuite.deployedContracts', {}
                 );
                 const contractId = deployedContracts[rootPath];
-                const config     = vscode.workspace.getConfiguration('stellarSuite');
+                const config = vscode.workspace.getConfiguration('stellarSuite');
 
                 results.push({
-                    name:       contractName,
-                    path:       cargoPath,
+                    name: contractName,
+                    path: cargoPath,
                     contractId,
                     isBuilt,
-                    hasWasm:    isBuilt,
-                    network:    config.get<string>('network', 'testnet'),
-                    source:     config.get<string>('source',  'dev'),
+                    hasWasm: isBuilt,
+                    network: config.get<string>('network', 'testnet'),
+                    source: config.get<string>('source', 'dev'),
                 });
                 return results;
             }

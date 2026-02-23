@@ -19,13 +19,7 @@
     "soroban",
     "developer-tools"
   ],
-  "activationEvents": [
-    "onView:stellarSuite.contractsView",
-    "onCommand:stellarSuite.simulateTransaction",
-    "onCommand:stellarSuite.deployContract",
-    "onCommand:stellarSuite.buildContract",
-    "onCommand:stellarSuite.refreshContracts"
-  ],
+  "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
     "viewsContainers": {
@@ -43,6 +37,7 @@
           "id": "stellarSuite.contractsView",
           "name": "Contracts",
           "type": "webview",
+          "icon": "resources/stellar-icon.png",
           "when": "true"
         }
       ]
@@ -129,14 +124,16 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run compile && npm run docs",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile"
+    "pretest": "npm run compile",
+    "docs": "typedoc"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.80.0",
+    "typedoc": "^0.25.0",
     "typescript": "^5.0.0"
   },
   "dependencies": {}
